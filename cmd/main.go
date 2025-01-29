@@ -1,21 +1,14 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"github.com/go-resty/resty/v2"
 	"github.com/joho/godotenv"
+	"github.com/openai/openai-go"
+	"github.com/openai/openai-go/option"
 	"log"
 	"os"
 )
-
-type RequestBody struct {
-	Prompt string `json:"prompt"`
-}
-
-type ResponseBody struct {
-	Output string `json:"output"`
-}
 
 func main() {
 	// Загружаем переменные окружения из файла .env
@@ -25,30 +18,21 @@ func main() {
 	}
 	apiKey := os.Getenv("API_KEY")
 	fmt.Printf("API Key: %s\n", apiKey)
+	url := "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+	baseUrl := option.WithBaseURL(url)
 
-	client := resty.New()
-
-	requestBody := RequestBody{
-		Prompt: "Привет, как дела?",
-	}
-
-	resp, err := client.R().
-		SetHeader("Content-Type", "application/json").
-		SetHeader("Authorization", "Bearer "+apiKey).
-		SetBody(requestBody).
-		Post("https://dashscope-intl.aliyuncs.com/compatible-mode/v1")
-
+	client := openai.NewClient(
+		option.WithAPIKey(apiKey),
+		baseUrl,
+	)
+	chatCompletion, err := client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
+		Messages: openai.F([]openai.ChatCompletionMessageParamUnion{
+			openai.UserMessage("Say this is a test"),
+		}),
+		Model: openai.F(openai.ChatModelGPT4o),
+	})
 	if err != nil {
-		log.Fatalf("Error making request: %v", err)
+		panic(err.Error())
 	}
-
-	var responseBody ResponseBody
-	body := resp.Body()
-	err = json.Unmarshal(body, &responseBody) //
-	if err != nil {
-		log.Fatalf("Error unmarshalling response: %v", err)
-	}
-
-	fmt.Println("Response:", responseBody.Output)
-
+	println(chatCompletion.Choices[0].Message.Content)
 }
